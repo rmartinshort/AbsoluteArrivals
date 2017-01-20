@@ -36,7 +36,7 @@ echo "m norm_trim.m" | sac
 
 #calculate RMS value for 5s noise and signal windows
 #do the stacking to form a stack and normalize it. Note that with 
-#IRIS SAC we can only do a linear stack, but this probavbly won't make much of a
+#IRIS SAC we can only do a linear stack, but this probably won't make much of a
 #difference to the final result - this should be checked
 
 sac << sacend
@@ -58,8 +58,13 @@ m $normmac stack.sac
 quit
 sacend
 
-#Cross correlate all the trimmed files with the master stack
+#Cross correlate all the trimmed files with the master stack. Remember that we need to change the begin time
+#value so that the stack lines up with the windowed traces!
+
 sac << sacend
+read stack.sac
+chnhdr b -10
+write over
 read stack.sac *BHZ.p0.stk1
 correlate master stack.sac normalized number 1 length 20 type rectangle
 mtw -5 5
@@ -73,5 +78,8 @@ saclst user3 user4 f *.BHZ.p0.stk1.rms > rms_pre_arrival_signal.out # filename, 
 
 # Grab correlation coefficients between stack and traces
 saclst depmax t9 f *.BHZ.p0.stk1.corr | grep BHZ > correlation.out # filename, correlation co-efficient, XC location (correction)
+#This correlation file gives us an indication of how good the MCCC was first time around. Ideally, there should be zero time shift between the relative arrival time 
+#location and the point of maximum CC when the stack is compared to each trace. If there is, we should probably disregard this trace and move on. This is a useful extra piece of 
+#quality control
 
 

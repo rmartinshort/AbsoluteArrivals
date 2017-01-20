@@ -137,7 +137,7 @@ def generate_weightings(scheme='RMS',function=7,SNR_cutoff=3.5,XC_cutoff=0.90):
 			outfile.close()
 
 			os.system('echo "read *.BHZ.p0.stk1; write append .stk2" >> mk_stk2.m') #start writing a macro to stack the traces again
-			os.system('rm *.rms')
+			#os.system('rm *.rms')
 
 		else:
 
