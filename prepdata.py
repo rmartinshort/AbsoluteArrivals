@@ -9,11 +9,12 @@ import numpy as np
 
 #SAC prep scripts
 SACnormstack='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/SAC_normstack.sh'
+SACnormstack2='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/SAC_normstack2.sh'
 normalizemacro='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/normalize.m'
 weightingsscript='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/GMT_weightings.sh'
 
 
-def InitialStackCorrelate(infile):
+def InitialStackCorrelate(badfileslist,event,infile):
 
 	'''Extracts the relative arrival time residuals from AIMBAT (or dbpick) output, appends relative arrival times to the SAc headers
 	and runs the Boyce SAC code, creating an initial stack and correlation files'''
@@ -26,6 +27,8 @@ def InitialStackCorrelate(infile):
 
 	os.system('rm *trim*') 
 	os.system('rm *stk*')
+	os.system('rm *p0*')
+	os.system('rm *p1*')
 
 	for line in lines:
 		#get the datafile associated with each record - just BHZ for now, but can be changed
@@ -67,9 +70,10 @@ def InitialStackCorrelate(infile):
 	os.system('%s %s' %(SACnormstack,normalizemacro))
 
 
-def generate_weightings(scheme='RMS',function=7,SNR_cutoff=3.5,XC_cutoff=0.90):
+def generate_weightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5,XC_cutoff=0.90,XC_time_cuttoff=0.25):
 
 	''' Scheme can be 'RMS' or 'XC'. Function is one of the 9 weight functions provided in the code '''
+
 
 	if scheme == 'RMS':
 
@@ -102,6 +106,7 @@ def generate_weightings(scheme='RMS',function=7,SNR_cutoff=3.5,XC_cutoff=0.90):
 				else:
 					print 'file %s has SNR of %g. Less than the cutoff of %g' %(filename,SNR,SNR_cutoff)
 					print 'file will not be included in subsequent stacking'
+					badfileslist.write('%s %s\n' %(event,filename))
 
 			#normalize the SNRs and write to file
 
@@ -132,12 +137,12 @@ def generate_weightings(scheme='RMS',function=7,SNR_cutoff=3.5,XC_cutoff=0.90):
 				filename = vals[0]
 				weight = float(vals[-1])
 
-				outfile.write('addstack %s weight %g\n' %(filename[:-4],weight))
+				outfile.write('addstack %s weight %g\n' %(filename[:-4]+'.stk2',weight))
 
 			outfile.close()
 
 			os.system('echo "read *.BHZ.p0.stk1; write append .stk2" >> mk_stk2.m') #start writing a macro to stack the traces again
-			#os.system('rm *.rms')
+			os.system('rm *.rms')
 
 		else:
 
@@ -169,13 +174,14 @@ def generate_weightings(scheme='RMS',function=7,SNR_cutoff=3.5,XC_cutoff=0.90):
 				XCval = float(vals[1])
 				adjusttime = float(vals[2])
 
-				if XCval > XC_cutoff:
+				if (XCval > XC_cutoff) and (adjusttime < XC_time_cuttoff):
 					fnames.append(filename)
 					xcs.append(XCval)
 					atimes.append(adjusttime)
 				else:
 					print 'file %s has XC of %g. Less than the cutoff of %g' %(filename,XCval,XC_cutoff)
 					print 'file will not be included in subsequent stacking'
+					badfileslist.write('%s %s\n' %(event,filename))
 
 			#normalize the SNRs and write to file
 
@@ -248,7 +254,20 @@ def generate_weightings(scheme='RMS',function=7,SNR_cutoff=3.5,XC_cutoff=0.90):
 		sys.exit(1)
 
 
+def SecondStackCorrelate(event):
 
+	print '--------------------------------------'
+	print 'Begin second round of stacking/XC'
+	print '--------------------------------------'
+
+	#----------------------------------------
+	#Method from Boyce et al. (2017)
+	#----------------------------------------
+
+	#Generate the second stack, called stack2.sac and compute the X correlation between 
+	#each sacfile and the stack 
+
+	os.system('%s %s' %(SACnormstack2,normalizemacro) )
 
 
 
@@ -262,9 +281,9 @@ def main():
 	os.chdir(datadir)
 	events = glob.glob('20*')
 
-	for event in events:
+	badfileslist = open('bad_files.txt','w')
 
-		print event
+	for event in events:
 
 		os.chdir(event)
 		os.chdir('BH_VEL')
@@ -272,11 +291,15 @@ def main():
 		targetfile = 'P_0.02.0.1_AIMBAT.out'
 
 		if os.path.isfile(targetfile):
-			traces = InitialStackCorrelate(targetfile)
-			generate_weightings(scheme='RMS')
+			traces = InitialStackCorrelate(badfileslist,event,targetfile)
+			generate_weightings(badfileslist,event,scheme='XC')
+			SecondStackCorrelate(event)
+
 
 
 		os.chdir(datadir)
+
+	badfileslist.close()
 
 
 
