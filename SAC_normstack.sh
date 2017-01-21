@@ -7,6 +7,7 @@
 # Calculate the XC between the stack and each trace to check the alignment.
 
 normmac=$1
+msaclocation=$2
 
 sac << sacend
 read *BHZ.p0
@@ -46,17 +47,36 @@ rms noise off to USER3
 mtw 0 5
 rms noise off to USER4
 write append .rms
+quit
+sacend
 
+#-------------------------------------------------------------------
+#USE MSAC
+export SACHOME=$msaclocation
+export SACAUX=${SACHOME}/lib/aux
+
+#convert byte order for msac
+msac2sac -m *.BHZ.p0.stk1
+
+msac << sacend
 read *BHZ.p0.stk1
 taper
 sss
+cs all sum on
 timewindow -10 10
-sumstack normalization on
+sumstack type phaseweight 4 normalization on
 writestack stack.sac
 quitsub
 m $normmac stack.sac
 quit
 sacend
+
+#MSAC doesn't display - prints to file and these should be removed
+rm *.sgf
+
+#Get back to regular sac
+source ~/.bash_profile
+#-------------------------------------------------------------------
 
 #Cross correlate all the trimmed files with the master stack. Remember that we need to change the begin time
 #value so that the stack lines up with the windowed traces!

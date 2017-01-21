@@ -12,6 +12,7 @@ SACnormstack='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_sur
 SACnormstack2='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/SAC_normstack2.sh'
 normalizemacro='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/normalize.m'
 weightingsscript='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/GMT_weightings.sh'
+MSACHOME="/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/MacSAC"
 
 
 def InitialStackCorrelate(badfileslist,event,infile):
@@ -25,8 +26,8 @@ def InitialStackCorrelate(badfileslist,event,infile):
 
 	assessed_stations = []
 
-	os.system('rm *trim*') 
-	os.system('rm *stk*')
+	#Initial cleanup during testing
+
 	os.system('rm *p0*')
 	os.system('rm *p1*')
 
@@ -67,7 +68,7 @@ def InitialStackCorrelate(badfileslist,event,infile):
 	#Generate the stack, called stack.sac and compute the X correlation between 
 	#each sacfile and the stack 
 
-	os.system('%s %s' %(SACnormstack,normalizemacro))
+	os.system('%s %s %s' %(SACnormstack,normalizemacro,MSACHOME))
 
 
 def generate_weightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5,XC_cutoff=0.90,XC_time_cuttoff=0.25):
@@ -172,14 +173,14 @@ def generate_weightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.
 				vals = line.split()
 				filename = vals[0]
 				XCval = float(vals[1])
-				adjusttime = float(vals[2])
+				adjusttime = abs(float(vals[2]))
 
 				if (XCval > XC_cutoff) and (adjusttime < XC_time_cuttoff):
 					fnames.append(filename)
 					xcs.append(XCval)
 					atimes.append(adjusttime)
 				else:
-					print 'file %s has XC of %g. Less than the cutoff of %g' %(filename,XCval,XC_cutoff)
+					print 'file %s has XC of %g and a ttshift of %g. Less than the cutoff of %g (or ttshift curoff of %g)' %(filename,XCval,adjusttime,XC_cutoff,XC_time_cuttoff)
 					print 'file will not be included in subsequent stacking'
 					badfileslist.write('%s %s\n' %(event,filename))
 
@@ -254,7 +255,7 @@ def generate_weightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.
 		sys.exit(1)
 
 
-def SecondStackCorrelate(event):
+def SecondStackCorrelate(event,scheme):
 
 	print '--------------------------------------'
 	print 'Begin second round of stacking/XC'
@@ -267,9 +268,50 @@ def SecondStackCorrelate(event):
 	#Generate the second stack, called stack2.sac and compute the X correlation between 
 	#each sacfile and the stack 
 
-	os.system('%s %s' %(SACnormstack2,normalizemacro) )
+	os.system('%s %s %s' %(SACnormstack2,normalizemacro,MSACHOME))
+
+	stackname = event+'.STACK.'+scheme+'.sac'
+	os.system('mv stack2.sac %s' %stackname)
+
+	#We are now in a position to find the absolute traveltime residials
+	# We have a sac file called stack2.sac, which contains the stacked, unfiltered data. We can manually pick this
+	# We then compare this to the relative arrival time values in the headers of the SAC files
+	# If we've done the RMS stacking scheme, then the files we want to pick from are called BHZ.p0, whereas if we've done the
+	# XC scheme, they're called BHZ.p1
+
+def CheckErrors(badfileslist,event,XC_cutoff=0.90,XC_time_cuttoff=0.25):
+
+	'''Generates a list of the original files whose absolute arrivals times we can use
+	These are the files that have passed the Xcorr and SNR tests'''
+
+	print '--------------------------------------'
+	print 'Checking XC errors'
+	print '--------------------------------------'
+
+	infile = open('correlation2.out') #This file contains the XC coefficients and time shifts from the latest stage of XC. The time shifts should all be close to zero
+
+	lines = infile.readlines()
+	infile.close()
+
+	outfile = open('FILES_TO_USE.txt','w')
+	outfile.write('File containing T0 information   XC coeffcient with final stack     Timeshift from final stack\n')
 
 
+	for line in lines:
+		vals = line.split()
+		XCval = float(vals[1])
+		filename = str(vals[0]).split('.')[:5]
+		filename = '.'.join(filename)
+		ttshift = abs(float(vals[2]))
+
+		if (ttshift > XC_time_cuttoff) or (XCval < XC_cutoff):
+			print 'file %s has XC of %g and a ttshift of %g. Less than the cutoff of %g (or ttshift curoff of %g)' %(filename,XCval,ttshift,XC_cutoff,XC_time_cuttoff)
+			print 'file will not be included in subsequent stacking'
+			badfileslist.write('%s %s\n' %(event,filename))
+		else:
+			outfile.write('%s %g %g\n' %(filename,XCval,ttshift))
+
+	outfile.close()
 
 
 
@@ -278,10 +320,23 @@ def main():
 
 	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/test_data'
 
+
+	SCHEME='XC'
+	SNR_cutoff = 3.5
+	XC_cutoff = 0.9
+	XC_time_cuttoff = 0.25
+	Weighting_function = 7
+
+	if not os.path.exists('event_stacks'):
+		os.system('mkdir event_stacks')
+
+	os.chdir('event_stacks')
+	eventstackdir = os.getcwd()
 	os.chdir(datadir)
+
 	events = glob.glob('20*')
 
-	badfileslist = open('bad_files.txt','w')
+	badfileslist = open('bad_files.txt','wa')
 
 	for event in events:
 
@@ -291,9 +346,29 @@ def main():
 		targetfile = 'P_0.02.0.1_AIMBAT.out'
 
 		if os.path.isfile(targetfile):
-			traces = InitialStackCorrelate(badfileslist,event,targetfile)
-			generate_weightings(badfileslist,event,scheme='XC')
-			SecondStackCorrelate(event)
+
+			#Append relative arrival times to the file headers, window the unfiltered data, stack and cross correlate all the
+			#windowed traces with the stack
+
+			InitialStackCorrelate(badfileslist,event,targetfile)
+
+			#QC stage - generate weightings for the second stack, either by using the SNR or the XC values
+
+			generate_weightings(badfileslist,event,scheme=SCHEME, function=Weighting_function, SNR_cutoff=SNR_cutoff, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
+
+			#Do the second stack
+
+			SecondStackCorrelate(event,scheme=SCHEME)
+
+			#Write a list of all the files whose XC/SNR values are sufficiently high that we can be confident in finding their absolute delay times
+
+			CheckErrors(badfileslist,event, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
+
+			#Clean up (testing)
+			os.system('rm *stk*')
+
+			#Put the stacked files in another directory, ready for picking
+			os.system('mv *STACK* %s' %eventstackdir)
 
 
 

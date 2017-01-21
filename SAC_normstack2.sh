@@ -1,6 +1,7 @@
 #!/bin/bash
 
 normmac=$1
+msaclocation=$2
 
 #Collect the files ready for stack and add them to the stack
 #restack the chosen seismograms according to their assigned weights
@@ -13,13 +14,21 @@ m mk_stk2.m
 quit
 sacend
 
-#This block may take a long time to complete!!
+#-------------------------------------------------------------------
+#USE MSAC
+export SACHOME=$msaclocation
+export SACAUX=${SACHOME}/lib/aux
+
+#convert byte order for msac
+msac2sac -m *.stk2
+
 echo "About to stack round 2"
-sac << sacend
+msac << sacend
 sss
 m addstack.m
+cs all sum on
 timewindow -10 10
-sumstack normalization on
+sumstack type phaseweight 4 normalization on
 writestack stack2.sac
 quitsub
 
@@ -27,6 +36,13 @@ m $normmac stack2.sac
 quit
 sacend
 echo "completed stack round 2"
+
+#MSAC doesn't display - prints to file and these should be removed
+rm *.sgf
+
+#Get back to regular sac
+source ~/.bash_profile
+#-------------------------------------------------------------------
 
 #Find the SNR of the stack and write to USER0 and USER5
 sac << sacend
