@@ -8,11 +8,12 @@ import os
 import numpy as np
 
 #SAC prep scripts
-SACnormstack='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/SAC_normstack.sh'
-SACnormstack2='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/SAC_normstack2.sh'
-normalizemacro='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/normalize.m'
-weightingsscript='/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/GMT_weightings.sh'
-MSACHOME="/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/MacSAC"
+abshome="/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/"
+SACnormstack=abshome+'SAC_normstack.sh'
+SACnormstack2=abshome+'SAC_normstack2.sh'
+normalizemacro=abshome+'normalize.m'
+weightingsscript=abshome+'GMT_weightings.sh'
+MSACHOME=abshome+'MacSAC'
 
 
 def InitialStackCorrelate(badfileslist,event,infile):
@@ -30,6 +31,7 @@ def InitialStackCorrelate(badfileslist,event,infile):
 
 	os.system('rm *p0*')
 	os.system('rm *p1*')
+	os.system('rm *stk*')
 
 	for line in lines:
 		#get the datafile associated with each record - just BHZ for now, but can be changed
@@ -318,10 +320,12 @@ def CheckErrors(badfileslist,event,XC_cutoff=0.90,XC_time_cuttoff=0.25):
 
 def main():
 
-	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/test_data'
+	'''Testing'''
+
+	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/test_data2'
 
 
-	SCHEME='XC'
+	SCHEME='RMS'
 	SNR_cutoff = 3.5
 	XC_cutoff = 0.9
 	XC_time_cuttoff = 0.25
@@ -340,6 +344,10 @@ def main():
 
 	for event in events:
 
+		print '\n=======================================\n'
+		print 'IN EVENT %s' %event
+		print '\n=======================================\n'
+
 		os.chdir(event)
 		os.chdir('BH_VEL')
 
@@ -347,28 +355,37 @@ def main():
 
 		if os.path.isfile(targetfile):
 
-			#Append relative arrival times to the file headers, window the unfiltered data, stack and cross correlate all the
-			#windowed traces with the stack
+			#prelim check to see if there is data in the file
+			infile = open(targetfile,'r')
+			lines = infile.readlines()
+			infile.close()
+			if len(lines) < 5:
+				print 'No data in targetfile for event %s' %event
 
-			InitialStackCorrelate(badfileslist,event,targetfile)
+			else:
 
-			#QC stage - generate weightings for the second stack, either by using the SNR or the XC values
+				#Append relative arrival times to the file headers, window the unfiltered data, stack and cross correlate all the
+				#windowed traces with the stack
 
-			generate_weightings(badfileslist,event,scheme=SCHEME, function=Weighting_function, SNR_cutoff=SNR_cutoff, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
+				InitialStackCorrelate(badfileslist,event,targetfile)
 
-			#Do the second stack
+				#QC stage - generate weightings for the second stack, either by using the SNR or the XC values
 
-			SecondStackCorrelate(event,scheme=SCHEME)
+				generate_weightings(badfileslist,event,scheme=SCHEME, function=Weighting_function, SNR_cutoff=SNR_cutoff, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
 
-			#Write a list of all the files whose XC/SNR values are sufficiently high that we can be confident in finding their absolute delay times
+				#Do the second stack
 
-			CheckErrors(badfileslist,event, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
+				SecondStackCorrelate(event,scheme=SCHEME)
 
-			#Clean up (testing)
-			os.system('rm *stk*')
+				#Write a list of all the files whose XC/SNR values are sufficiently high that we can be confident in finding their absolute delay times
 
-			#Put the stacked files in another directory, ready for picking
-			os.system('mv *STACK* %s' %eventstackdir)
+				CheckErrors(badfileslist,event, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
+
+				#Clean up (testing)
+				#os.system('rm *stk*')
+
+				#Put the stacked files in another directory, ready for picking
+				os.system('mv *STACK* %s' %eventstackdir)
 
 
 

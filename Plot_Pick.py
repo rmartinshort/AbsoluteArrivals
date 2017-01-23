@@ -112,7 +112,7 @@ if os.path.isfile(results.infile1):
 
 else:
 
-	print 'Provided file %s not found' %results.infile
+	print 'Provided file %s not found' %results.infile1
 	sys.exit(1)
 
 
