@@ -28,6 +28,8 @@ if os.path.isfile(results.infile1):
 	else:
 		print 'No second trace found/provided'
 		tracesecond = None
+		T2_SNR = None
+		insac2 = None
 
 
 	#Set up the QTGui ap
@@ -43,6 +45,9 @@ if os.path.isfile(results.infile1):
 	npts = trace1[0].stats.npts
 	x = np.linspace(-10,10,npts)
 	DATA = trace1[0].data
+	Noise = trace1[0].stats.sac.user0
+	Signal = trace1[0].stats.sac.user5
+	T1_SNR = Signal/Noise
 
 	#Plot the trace 
 	p1 = win.addPlot(title='%s' %insac1)
@@ -54,6 +59,14 @@ if os.path.isfile(results.infile1):
 	if tracesecond:
 		DATA2 = tracesecond[0].data
 		p1.plot(x,DATA2,pen=(0,255,0))
+		Noise = tracesecond[0].stats.sac.user0
+		Signal = tracesecond[0].stats.sac.user5
+		T2_SNR = Signal/Noise
+
+	print '-------------------------------'
+	print "SNR1 [%s] : %g" %(insac1,T1_SNR)
+	print "SNR2 [%s] : %g" %(insac2,T2_SNR)
+	print '-------------------------------'
 
 	#plot the position of the relative arrival (always ay zero)
 	vZeroline = pg.InfiniteLine(angle=90,movable=False,pen=(255,255,255))
