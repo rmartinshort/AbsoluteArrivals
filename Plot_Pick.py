@@ -8,6 +8,7 @@ import pyqtgraph as pg
 import sys
 import os
 import obspy
+from obspy.signal.trigger import pkBaer
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -43,11 +44,17 @@ if os.path.isfile(results.infile1):
 
 	#Set up x axis
 	npts = trace1[0].stats.npts
+	df = trace1[0].stats.sampling_rate
 	x = np.linspace(-10,10,npts)
 	DATA = trace1[0].data
 	Noise = trace1[0].stats.sac.user0
 	Signal = trace1[0].stats.sac.user5
 	T1_SNR = Signal/Noise
+
+	#Do a P-pick with the automatic picker
+	p_pick, phase_info = pkBaer(DATA, df, 20, 60, 7.0, 12.0, 100, 100)
+	autoPtime = -10 + p_pick/df
+	print autoPtime
 
 	#Plot the trace 
 	p1 = win.addPlot(title='%s' %insac1)
@@ -65,8 +72,16 @@ if os.path.isfile(results.infile1):
 
 	print '-------------------------------'
 	print "SNR1 [%s] : %g" %(insac1,T1_SNR)
-	print "SNR2 [%s] : %g" %(insac2,T2_SNR)
+
+	if T2_SNR:
+		print "SNR2 [%s] : %g" %(insac2,T2_SNR)
+
 	print '-------------------------------'
+
+	#plot the automatic P pick time
+	vAutoPline = pg.InfiniteLine(angle=90,movable=False,pen=(0,0,255))
+	p1.addItem(vAutoPline, ignoreBounds=True)
+	vAutoPline.setPos(autoPtime)
 
 	#plot the position of the relative arrival (always ay zero)
 	vZeroline = pg.InfiniteLine(angle=90,movable=False,pen=(255,255,255))

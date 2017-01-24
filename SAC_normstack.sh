@@ -15,10 +15,9 @@ cuterr fillz
 cut t4 -10 10
 read
 synchronize
-int
 interpolate delta 0.025
+int
 taper width 0.3
-rtrend
 chnhdr b -10
 write append .stk1
 cut off
@@ -60,7 +59,7 @@ msac2sac -m *.BHZ.p0.stk1
 
 msac << sacend
 read *BHZ.p0.stk1
-taper
+taper width 0.3
 sss
 cs all sum on
 timewindow -10 10

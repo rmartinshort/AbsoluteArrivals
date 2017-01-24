@@ -14,11 +14,11 @@ import glob
 def main():
 
 
-	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/testdata3'
+	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/test_data2'
 	targetfile = 'P_0.02.0.1_AIMBAT.out'
 
 
-	SCHEME = 'XC'
+	SCHEME = 'RMS'
 	SNR_cutoff = 3.5
 	XC_cutoff = 0.9
 	XC_time_cuttoff = 0.25
@@ -62,7 +62,7 @@ def main():
 
 				#QC stage - generate weightings for the second stack, either by using the SNR or the XC values
 
-				AT.GenerateWeightings(badfileslist,event,scheme=SCHEME, function=Weighting_function, SNR_cutoff=SNR_cutoff, XC_cutoff=0.85, XC_time_cuttoff=0.25)
+				AT.GenerateWeightings(badfileslist,event,scheme=SCHEME, function=Weighting_function, SNR_cutoff=SNR_cutoff, XC_cutoff=0.9, XC_time_cuttoff=0.25)
 
 				#Do the second stack
 

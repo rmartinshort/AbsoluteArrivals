@@ -47,6 +47,7 @@ source ~/.bash_profile
 #Find the SNR of the stack and write to USER0 and USER5
 sac << sacend
 read stack2.sac
+taper width 0.3
 chnhdr b -10
 wh
 mtw -7 -2

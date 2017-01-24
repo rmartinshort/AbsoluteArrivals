@@ -143,7 +143,6 @@ def GenerateWeightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5
 					vals = line.split()
 					filename = vals[0]
 					weight = float(vals[-1])
-
 					outfile.write('addstack %s weight %g\n' %(filename[:-4]+'.stk2',weight))
 
 				outfile.close()
@@ -153,7 +152,7 @@ def GenerateWeightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5
 
 			except:
 				print '\n\n\n\n'
-				print snrs_normed
+				print 'Not enough good data to perform a second stack!'
 				print '\n\n\n\n'
 
 		else:
@@ -191,7 +190,7 @@ def GenerateWeightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5
 					xcs.append(XCval)
 					atimes.append(adjusttime)
 				else:
-					print 'file %s has XC of %g and a ttshift of %g. Less than the cutoff of %g (or ttshift curoff of %g)' %(filename,XCval,adjusttime,XC_cutoff,XC_time_cuttoff)
+					print 'file %s has XC of %g and a ttshift of %g. Less than the cutoff of %g (or ttshift cutoff of %g)' %(filename,XCval,adjusttime,XC_cutoff,XC_time_cuttoff)
 					print 'file will not be included in subsequent stacking'
 					badfileslist.write('%s %s\n' %(event,filename))
 
@@ -255,6 +254,7 @@ def GenerateWeightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5
 				os.system('echo "interpolate delta 0.025" >> mk_stk2.m')
 				os.system('echo "int" >> mk_stk2.m')
 				os.system('echo "taper width 0.3" >> mk_stk2.m')
+				#os.system('echo "rtrend" >> mk_stk2.m')
 				os.system('echo "chnhdr b -10" >> mk_stk2.m')
 				os.system('echo "write append .stk2" >> mk_stk2.m')
 				os.system('echo "cut off" >> mk_stk2.m')
@@ -263,7 +263,7 @@ def GenerateWeightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5
 
 			except:
 				print '\n\n\n\n'
-				print xcs
+				print 'Not enough good data to perform second stack!'
 				print '\n\n\n\n'
 
 
@@ -358,10 +358,10 @@ def AppendAbsoluteArrivals(datapath):
 		trace = obspy.read(sacfiles[0],format='SAC')
 		correction = trace[0].stats.sac.t0
 
-		if abs(correction) < 5: #should not have a huge traveltime correction
+		if (0 < abs(correction) < 5): #should not have a huge traveltime correction
 			evtcorrfile.write('%s %g\n' %(event,correction))
 		else:
-			print 'large correction of %g for event %s!' %(correction,event)
+			print 'large (or zero) correction of %g for event %s!' %(correction,event)
 			evtcorrfile.write('%s %g\n' %(event,correction))
 
 	evtcorrfile.close()
