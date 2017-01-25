@@ -289,10 +289,21 @@ def SecondStackCorrelate(event,scheme):
 
 	if os.path.isfile('mk_stk2.m'):
 
-		os.system('%s %s %s' %(SACnormstack2,normalizemacro,MSACHOME))
+		#Chack how many entries in the 'addstack.m' macro - if there is only one, the stacking will fail
+		tmp = open('addstack.m','r')
+		lines = tmp.readlines()
+		tmp.close()
 
-		stackname = event+'.STACK.'+scheme+'.sac'
-		os.system('mv stack2.sac %s' %stackname)
+		if len(lines) > 1:
+
+			os.system('%s %s %s' %(SACnormstack2,normalizemacro,MSACHOME))
+			stackname = event+'.STACK.'+scheme+'.sac'
+			os.system('mv stack2.sac %s' %stackname)
+
+		else:
+
+			print 'Cannot stack in event %s' %event
+			print 'Not enough high quality waveforms'
 
 	else:
 
@@ -354,7 +365,7 @@ def AppendAbsoluteArrivals(datapath):
 
 	for event in events:
 		print event
-		sacfiles = glob.glob('%s*.sac' %event)
+		sacfiles = glob.glob('%s*.sac' %event) #Just the original files
 		trace = obspy.read(sacfiles[0],format='SAC')
 		correction = trace[0].stats.sac.t0
 
@@ -395,17 +406,20 @@ def AppendAbsoluteArrivals(datapath):
 				fname = eventpath+'/'+vals[0].strip()
 				XCval = float(vals[1])
 				XCcorr = float(vals[2])
-				trace = obspy.read(fname,format='SAC')
-				Predicted_arrival = float(trace[0].stats.sac.user1)
-				Relative_arrival = float(trace[0].stats.sac.t4)
+				try:
+					trace = obspy.read(fname,format='SAC')
+					Predicted_arrival = float(trace[0].stats.sac.user1)
+					Relative_arrival = float(trace[0].stats.sac.t4)
 
-				#print Predicted_arrival, Relative_arrival, correction, XCcorr
-				Relative_residuial = Relative_arrival - Predicted_arrival
-				Absolute_Arrival = Relative_arrival + correction + XCcorr 
-				Absolute_Residial = Absolute_Arrival - Predicted_arrival
-				trace[0].stats.sac.t1 = Absolute_Arrival
-				trace.write(fname,format='SAC')
-				outfile.write('%s %g %g %g %g %g %g %g\n' %(fname.split('/')[-1],Predicted_arrival,Relative_arrival,XCcorr,Absolute_Arrival,Relative_residuial,Absolute_Residial,XCval))
+					#print Predicted_arrival, Relative_arrival, correction, XCcorr
+					Relative_residuial = Relative_arrival - Predicted_arrival
+					Absolute_Arrival = Relative_arrival + correction + XCcorr 
+					Absolute_Residial = Absolute_Arrival - Predicted_arrival
+					trace[0].stats.sac.t1 = Absolute_Arrival
+					trace.write(fname,format='SAC')
+					outfile.write('%s %g %g %g %g %g %g %g\n' %(fname.split('/')[-1],Predicted_arrival,Relative_arrival,XCcorr,Absolute_Arrival,Relative_residuial,Absolute_Residial,XCval))
+				except:
+					print 'Something wrong with acces to file %s' %fname
 
 			outfile.close()
 
