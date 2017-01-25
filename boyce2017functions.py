@@ -116,38 +116,44 @@ def GenerateWeightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5
 			#normalize the SNRs and write to file
 
 			snrs = np.array(snrs)
-			snrs_normed = snrs/np.max(snrs)
 
-			for element in zip(fnames,snrs_normed):
-				outfile1.write('%g\n' %(element[1]))
-				outfile2.write('%s\n' %(element[0]))
+			try:
+				snrs_normed = snrs/np.max(snrs)
 
-			outfile1.close()
-			outfile2.close()
+				for element in zip(fnames,snrs_normed):
+					outfile1.write('%g\n' %(element[1]))
+					outfile2.write('%s\n' %(element[0]))
 
-			#Generate weighting values associated with each file and produce output file contining filename and weights, for stacking
-			#Also create a new SAC macro that will stack the selected files according to their new weights
+				outfile1.close()
+				outfile2.close()
 
-			os.system('%s SNR_norm_values.txt %s %i' %(weightingsscript,'SNR_weighted_values.txt',function))
-			os.system('paste SNR_norm_files.txt SNR_norm_values.txt SNR_weighted_values.txt > SNR_weights.txt')
-			os.system('rm SNR_norm_files.txt SNR_norm_values.txt SNR_weighted_values.txt')
+				#Generate weighting values associated with each file and produce output file contining filename and weights, for stacking
+				#Also create a new SAC macro that will stack the selected files according to their new weights
 
-			outfile = open('addstack.m','w')
-			infile = open('SNR_weights.txt','r')
-			lines = infile.readlines()
-			infile.close()
+				os.system('%s SNR_norm_values.txt %s %i' %(weightingsscript,'SNR_weighted_values.txt',function))
+				os.system('paste SNR_norm_files.txt SNR_norm_values.txt SNR_weighted_values.txt > SNR_weights.txt')
+				os.system('rm SNR_norm_files.txt SNR_norm_values.txt SNR_weighted_values.txt')
 
-			for line in lines:
-				vals = line.split()
-				filename = vals[0]
-				weight = float(vals[-1])
+				outfile = open('addstack.m','w')
+				infile = open('SNR_weights.txt','r')
+				lines = infile.readlines()
+				infile.close()
 
-				outfile.write('addstack %s weight %g\n' %(filename[:-4]+'.stk2',weight))
+				for line in lines:
+					vals = line.split()
+					filename = vals[0]
+					weight = float(vals[-1])
+					outfile.write('addstack %s weight %g\n' %(filename[:-4]+'.stk2',weight))
 
-			outfile.close()
+				outfile.close()
 
-			os.system('echo "read *.BHZ.p0.stk1; write append .stk2" >> mk_stk2.m') #start writing a macro to stack the traces again
-			os.system('rm *.rms')
+				os.system('echo "read *.BHZ.p0.stk1; write append .stk2" >> mk_stk2.m') #start writing a macro to stack the traces again
+				os.system('rm *.rms')
+
+			except:
+				print '\n\n\n\n'
+				print 'Not enough good data to perform a second stack!'
+				print '\n\n\n\n'
 
 		else:
 
@@ -184,72 +190,81 @@ def GenerateWeightings(badfileslist,event,scheme='RMS',function=7,SNR_cutoff=3.5
 					xcs.append(XCval)
 					atimes.append(adjusttime)
 				else:
-					print 'file %s has XC of %g and a ttshift of %g. Less than the cutoff of %g (or ttshift curoff of %g)' %(filename,XCval,adjusttime,XC_cutoff,XC_time_cuttoff)
+					print 'file %s has XC of %g and a ttshift of %g. Less than the cutoff of %g (or ttshift cutoff of %g)' %(filename,XCval,adjusttime,XC_cutoff,XC_time_cuttoff)
 					print 'file will not be included in subsequent stacking'
 					badfileslist.write('%s %s\n' %(event,filename))
 
-			#normalize the SNRs and write to file
+			#normalize the XSs and write to file. Its possible that none of the data will have passed the initial round of QC. The following try/except statement 
+			#attempts to account for this
 
 			xcs = np.array(xcs)
-			xcs_normed = xcs/np.max(xcs)
 
-			for element in zip(fnames,xcs_normed,atimes):
+			try:
+				xcs_normed = xcs/np.max(xcs)
 
-				#Adjust the SAC header to that the relative arrival time value is shifted according 
-				#to the cross correlation value
+				for element in zip(fnames,xcs_normed,atimes):
 
-				#we want to read the untrimmed version of the file and write a new, adjusted version
-				fname_read = element[0][:-12]+'p0'
-				trace = obspy.read(fname_read,format='SAC')
-				newname = fname_read[:-3]+'.p1'
-				tnew = trace[0].stats.sac.t4 + element[2]
-				trace[0].stats.sac.t4 = tnew
-				trace.write(newname,format='SAC')
+					#Adjust the SAC header to that the relative arrival time value is shifted according 
+					#to the cross correlation value
 
-				os.system('echo "m %s %s" >> norm_stk2.m' %(normalizemacro,newname))
+					#we want to read the untrimmed version of the file and write a new, adjusted version
+					fname_read = element[0][:-12]+'p0'
+					trace = obspy.read(fname_read,format='SAC')
+					newname = fname_read[:-3]+'.p1'
+					tnew = trace[0].stats.sac.t4 + element[2]
+					trace[0].stats.sac.t4 = tnew
+					trace.write(newname,format='SAC')
 
-				outfile1.write('%g\n' %(element[1]))
-				outfile2.write('%s\n' %(element[0]))
+					os.system('echo "m %s %s" >> norm_stk2.m' %(normalizemacro,newname))
 
-			outfile1.close()
-			outfile2.close()
+					outfile1.write('%g\n' %(element[1]))
+					outfile2.write('%s\n' %(element[0]))
 
-			#Generate weighting values associated with each file and produce output file contining filename and weights, for stacking
-			#Also create a new SAC macro that will stack the selected files according to their new weights
+				outfile1.close()
+				outfile2.close()
 
-			os.system('%s XC_norm_values.txt %s %i' %(weightingsscript,'XC_weighted_values.txt',function))
-			os.system('paste XC_norm_files.txt XC_norm_values.txt XC_weighted_values.txt > XC_weights.txt')
-			os.system('rm XC_norm_files.txt XC_norm_values.txt XC_weighted_values.txt')
+				#Generate weighting values associated with each file and produce output file contining filename and weights, for stacking
+				#Also create a new SAC macro that will stack the selected files according to their new weights
 
-			outfile = open('addstack.m','w')
-			infile = open('XC_weights.txt','r')
-			lines = infile.readlines()
-			infile.close()
+				os.system('%s XC_norm_values.txt %s %i' %(weightingsscript,'XC_weighted_values.txt',function))
+				os.system('paste XC_norm_files.txt XC_norm_values.txt XC_weighted_values.txt > XC_weights.txt')
+				os.system('rm XC_norm_files.txt XC_norm_values.txt XC_weighted_values.txt')
 
-			for line in lines:
-				vals = line.split()
-				filename = vals[0]
-				weight = float(vals[-1])
+				outfile = open('addstack.m','w')
+				infile = open('XC_weights.txt','r')
+				lines = infile.readlines()
+				infile.close()
 
-				outfile.write('addstack %s weight %g\n' %(filename[:-12]+'p1.stk2',weight))
+				for line in lines:
+					vals = line.split()
+					filename = vals[0]
+					weight = float(vals[-1])
 
-			outfile.close()
+					outfile.write('addstack %s weight %g\n' %(filename[:-12]+'p1.stk2',weight))
 
-			#write required commands to the second stacking macro
+				outfile.close()
 
-			os.system('echo "read *.BHZ.p1" >> mk_stk2.m')
-			os.system('echo "cuterr fillz" >> mk_stk2.m')
-			os.system('echo "cut t4 -10 10" >> mk_stk2.m')
-			os.system('echo "read" >> mk_stk2.m')
-			os.system('echo "synchronize" >> mk_stk2.m')
-			os.system('echo "interpolate delta 0.025" >> mk_stk2.m')
-			os.system('echo "int" >> mk_stk2.m')
-			os.system('echo "taper width 0.3" >> mk_stk2.m')
-			os.system('echo "chnhdr b -10" >> mk_stk2.m')
-			os.system('echo "write append .stk2" >> mk_stk2.m')
-			os.system('echo "cut off" >> mk_stk2.m')
-			os.system('echo "m norm_stk2.m" >> mk_stk2.m')
-			os.system('rm *.corr')
+				#write required commands to the second stacking macro
+
+				os.system('echo "read *.BHZ.p1" >> mk_stk2.m')
+				os.system('echo "cuterr fillz" >> mk_stk2.m')
+				os.system('echo "cut t4 -10 10" >> mk_stk2.m')
+				os.system('echo "read" >> mk_stk2.m')
+				os.system('echo "synchronize" >> mk_stk2.m')
+				os.system('echo "interpolate delta 0.025" >> mk_stk2.m')
+				os.system('echo "int" >> mk_stk2.m')
+				os.system('echo "taper width 0.3" >> mk_stk2.m')
+				#os.system('echo "rtrend" >> mk_stk2.m')
+				os.system('echo "chnhdr b -10" >> mk_stk2.m')
+				os.system('echo "write append .stk2" >> mk_stk2.m')
+				os.system('echo "cut off" >> mk_stk2.m')
+				os.system('echo "m norm_stk2.m" >> mk_stk2.m')
+				os.system('rm *.corr')
+
+			except:
+				print '\n\n\n\n'
+				print 'Not enough good data to perform second stack!'
+				print '\n\n\n\n'
 
 
 
@@ -272,10 +287,27 @@ def SecondStackCorrelate(event,scheme):
 	#Generate the second stack, called stack2.sac and compute the X correlation between 
 	#each sacfile and the stack 
 
-	os.system('%s %s %s' %(SACnormstack2,normalizemacro,MSACHOME))
+	if os.path.isfile('mk_stk2.m'):
 
-	stackname = event+'.STACK.'+scheme+'.sac'
-	os.system('mv stack2.sac %s' %stackname)
+		#Chack how many entries in the 'addstack.m' macro - if there is only one, the stacking will fail
+		tmp = open('addstack.m','r')
+		lines = tmp.readlines()
+		tmp.close()
+
+		if len(lines) > 1:
+
+			os.system('%s %s %s' %(SACnormstack2,normalizemacro,MSACHOME))
+			stackname = event+'.STACK.'+scheme+'.sac'
+			os.system('mv stack2.sac %s' %stackname)
+
+		else:
+
+			print 'Cannot stack in event %s' %event
+			print 'Not enough high quality waveforms'
+
+	else:
+
+		print 'ALERT: No mk_stk2 file found: Evidently none of the data was of high enough quality to make it to stack'
 
 	#We are now in a position to find the absolute traveltime residials
 	# We have a sac file called stack2.sac, which contains the stacked, unfiltered data. We can manually pick this
@@ -333,14 +365,14 @@ def AppendAbsoluteArrivals(datapath):
 
 	for event in events:
 		print event
-		sacfiles = glob.glob('%s*.sac' %event)
+		sacfiles = glob.glob('%s*.sac' %event) #Just the original files
 		trace = obspy.read(sacfiles[0],format='SAC')
 		correction = trace[0].stats.sac.t0
 
-		if abs(correction) < 5: #should not have a huge traveltime correction
+		if (0 < abs(correction) < 5): #should not have a huge traveltime correction
 			evtcorrfile.write('%s %g\n' %(event,correction))
 		else:
-			print 'large correction of %g for event %s!' %(correction,event)
+			print 'large (or zero) correction of %g for event %s!' %(correction,event)
 			evtcorrfile.write('%s %g\n' %(event,correction))
 
 	evtcorrfile.close()
@@ -374,17 +406,20 @@ def AppendAbsoluteArrivals(datapath):
 				fname = eventpath+'/'+vals[0].strip()
 				XCval = float(vals[1])
 				XCcorr = float(vals[2])
-				trace = obspy.read(fname,format='SAC')
-				Predicted_arrival = float(trace[0].stats.sac.user1)
-				Relative_arrival = float(trace[0].stats.sac.t4)
+				try:
+					trace = obspy.read(fname,format='SAC')
+					Predicted_arrival = float(trace[0].stats.sac.user1)
+					Relative_arrival = float(trace[0].stats.sac.t4)
 
-				#print Predicted_arrival, Relative_arrival, correction, XCcorr
-				Relative_residuial = Relative_arrival - Predicted_arrival
-				Absolute_Arrival = Relative_arrival + correction + XCcorr 
-				Absolute_Residial = Absolute_Arrival - Predicted_arrival
-				trace[0].stats.sac.t1 = Absolute_Arrival
-				trace.write(fname,format='SAC')
-				outfile.write('%s %g %g %g %g %g %g %g\n' %(fname.split('/')[-1],Predicted_arrival,Relative_arrival,XCcorr,Absolute_Arrival,Relative_residuial,Absolute_Residial,XCval))
+					#print Predicted_arrival, Relative_arrival, correction, XCcorr
+					Relative_residuial = Relative_arrival - Predicted_arrival
+					Absolute_Arrival = Relative_arrival + correction + XCcorr 
+					Absolute_Residial = Absolute_Arrival - Predicted_arrival
+					trace[0].stats.sac.t1 = Absolute_Arrival
+					trace.write(fname,format='SAC')
+					outfile.write('%s %g %g %g %g %g %g %g\n' %(fname.split('/')[-1],Predicted_arrival,Relative_arrival,XCcorr,Absolute_Arrival,Relative_residuial,Absolute_Residial,XCval))
+				except:
+					print 'Something wrong with acces to file %s' %fname
 
 			outfile.close()
 
@@ -397,75 +432,75 @@ def main():
 	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/test_data2'
 
 
-	SCHEME='RMS'
-	SNR_cutoff = 3.5
-	XC_cutoff = 0.9
-	XC_time_cuttoff = 0.25
-	Weighting_function = 7
+	# SCHEME='RMS'
+	# SNR_cutoff = 3.5
+	# XC_cutoff = 0.9
+	# XC_time_cuttoff = 0.25
+	# Weighting_function = 7
 
-	if not os.path.exists('event_stacks'):
-		os.system('mkdir event_stacks')
+	# if not os.path.exists('event_stacks'):
+	# 	os.system('mkdir event_stacks')
 
-	os.chdir('event_stacks')
-	eventstackdir = os.getcwd()
-	os.chdir(datadir)
+	# os.chdir('event_stacks')
+	# eventstackdir = os.getcwd()
+	# os.chdir(datadir)
 
-	events = glob.glob('20*')
+	# events = glob.glob('20*')
 
-	badfileslist = open('bad_files.txt','wa')
+	# badfileslist = open('bad_files.txt','wa')
 
-	for event in events:
+	# for event in events:
 
-		print '\n=======================================\n'
-		print 'IN EVENT %s' %event
-		print '\n=======================================\n'
+	# 	print '\n=======================================\n'
+	# 	print 'IN EVENT %s' %event
+	# 	print '\n=======================================\n'
 
-		os.chdir(event)
-		os.chdir('BH_VEL')
+	# 	os.chdir(event)
+	# 	os.chdir('BH_VEL')
 
-		targetfile = 'P_0.02.0.1_AIMBAT.out'
+	# 	targetfile = 'P_0.02.0.1_AIMBAT.out'
 
-		if os.path.isfile(targetfile):
+	# 	if os.path.isfile(targetfile):
 
-			#prelim check to see if there is data in the file
-			infile = open(targetfile,'r')
-			lines = infile.readlines()
-			infile.close()
-			if len(lines) < 5:
-				print 'No data in targetfile for event %s' %event
+	# 		#prelim check to see if there is data in the file
+	# 		infile = open(targetfile,'r')
+	# 		lines = infile.readlines()
+	# 		infile.close()
+	# 		if len(lines) < 5:
+	# 			print 'No data in targetfile for event %s' %event
 
-			else:
+	# 		else:
 
-				#Append relative arrival times to the file headers, window the unfiltered data, stack and cross correlate all the
-				#windowed traces with the stack
+	# 			#Append relative arrival times to the file headers, window the unfiltered data, stack and cross correlate all the
+	# 			#windowed traces with the stack
 
-				InitialStackCorrelate(badfileslist,event,targetfile)
+	# 			InitialStackCorrelate(badfileslist,event,targetfile)
 
-				#QC stage - generate weightings for the second stack, either by using the SNR or the XC values
+	# 			#QC stage - generate weightings for the second stack, either by using the SNR or the XC values
 
-				GenerateWeightings(badfileslist,event,scheme=SCHEME, function=Weighting_function, SNR_cutoff=SNR_cutoff, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
+	# 			generate_weightings(badfileslist,event,scheme=SCHEME, function=Weighting_function, SNR_cutoff=SNR_cutoff, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
 
-				#Do the second stack
+	# 			#Do the second stack
 
-				SecondStackCorrelate(event,scheme=SCHEME)
+	# 			SecondStackCorrelate(event,scheme=SCHEME)
 
-				#Write a list of all the files whose XC/SNR values are sufficiently high that we can be confident in finding their absolute delay times
+	# 			#Write a list of all the files whose XC/SNR values are sufficiently high that we can be confident in finding their absolute delay times
 
-				CheckErrors(badfileslist,event, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
+	# 			CheckErrors(badfileslist,event, XC_cutoff=XC_cutoff, XC_time_cuttoff=XC_time_cuttoff)
 
-				#Clean up (testing)
-				os.system('rm *stk*')
+	# 			#Clean up (testing)
+	# 			os.system('rm *stk*')
 
-				#Put the stacked files in another directory, ready for picking
-				os.system('mv *STACK* %s' %eventstackdir)
+	# 			#Put the stacked files in another directory, ready for picking
+	# 			os.system('mv *STACK* %s' %eventstackdir)
 
 
 
-		os.chdir(datadir)
+	# 	os.chdir(datadir)
 
-	badfileslist.close()
+	# badfileslist.close()
 
-	#AppendAbsoluteArrivals(datadir)
+	AppendAbsoluteArrivals(datadir)
 
 
 
