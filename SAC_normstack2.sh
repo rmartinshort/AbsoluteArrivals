@@ -23,6 +23,7 @@ export SACAUX=${SACHOME}/lib/aux
 msac2sac -m *.stk2
 
 echo "About to stack round 2"
+cat addstack.m
 msac << sacend
 sss
 m addstack.m
