@@ -36,8 +36,11 @@ def main():
 
 				sacfiles = glob.glob(event+'*.sac')
 				if len(sacfiles) == 2:
-					os.system('./Plot_Pick.py -infile1 %s -infile2 %s' %(sacfiles[1],sacfiles[0]))
-				else:
+
+					#THe RMS noise stack file will always be first in the list. Typically these have the highest
+					#SNR ratio 
+					os.system('./Plot_Pick.py -infile1 %s -infile2 %s' %(sacfiles[0],sacfiles[1])) 
+ 				else:
 					print 'Number of sacfiles in %s != 2!' %(sacfiles)
 					os.system('./Plot_Pick.py -infile1 %s' %(sacfiles[0]))
 
