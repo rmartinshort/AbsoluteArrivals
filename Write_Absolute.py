@@ -11,7 +11,7 @@ import boyce2017functions as AT
 
 def main():
 
-	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/testdata3'
+	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/test_from_lower48/2006-07-01_2006-09-01'
 
 	AT.AppendAbsoluteArrivals(datadir)
 

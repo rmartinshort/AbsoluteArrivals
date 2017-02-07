@@ -8,7 +8,7 @@ import pyqtgraph as pg
 import sys
 import os
 import obspy
-from obspy.signal.trigger import recSTALTA
+from obspy.signal.trigger import recSTALTA, classicSTALTA
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -53,7 +53,7 @@ if os.path.isfile(results.infile1):
 	T1_SNR = Signal/Noise
 
 	#Do a P-pick with the automatic picker
-	cft = recSTALTA(DATA, 5, 300)
+	cft = classicSTALTA(DATA, 150, 200)
 	cft = cft/max(cft)
 
 	#Plot the trace 

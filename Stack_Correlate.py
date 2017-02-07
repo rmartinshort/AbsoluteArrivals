@@ -14,11 +14,11 @@ import glob
 def main():
 
 
-	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/testdata3'
+	datadir = '/Users/rmartinshort/Documents/Berkeley/Alaska/Tomography/Joint_surface/python_abstimes/test_alaska/2016-08-01_2016-09-25'
 	targetfile = 'P_0.02.0.1_AIMBAT.out'
 
 
-	SCHEME = 'XC'
+	SCHEME = 'RMS'
 	SNR_cutoff = 3.5
 	XC_cutoff = 0.9
 	XC_time_cuttoff = 0.25
